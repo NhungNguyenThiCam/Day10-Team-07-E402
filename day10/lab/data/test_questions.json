@@ -27,5 +27,13 @@
     "must_not_contain": ["10 ngày phép năm"],
     "expect_top1_doc_id": "hr_leave_policy",
     "note": "Phải loại bản HR cũ (10 ngày); top-1 nên từ hr_leave_policy"
+  },
+  {
+    "id": "q_password_reset",
+    "question": "Đổi mật khẩu qua portal self-service mất bao lâu để đồng bộ toàn hệ thống?",
+    "must_contain_any": ["24 giờ", "24 giờ để đồng bộ"],
+    "must_not_contain": [],
+    "expect_top1_doc_id": "it_helpdesk_faq",
+    "note": "Câu thứ 5 - Distinction requirement (≥5 câu eval)"
   }
 ]

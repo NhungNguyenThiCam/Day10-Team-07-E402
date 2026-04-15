@@ -61,6 +61,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(msg)
         _log(log_path, msg)
 
+    # Capture ingest timestamp (boundary 1)
+    ingest_timestamp = datetime.now(timezone.utc).isoformat()
+    
     rows = load_raw_csv(raw_path)
     raw_count = len(rows)
     log(f"run_id={run_id}")
@@ -103,9 +106,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     if cleaned:
         latest_exported = max((r.get("exported_at") or "" for r in cleaned), default="")
 
+    # Capture publish timestamp (boundary 2)
+    publish_timestamp = datetime.now(timezone.utc).isoformat()
+
     manifest = {
         "run_id": run_id,
         "run_timestamp": datetime.now(timezone.utc).isoformat(),
+        "ingest_timestamp": ingest_timestamp,
+        "publish_timestamp": publish_timestamp,
         "raw_path": str(raw_path.relative_to(ROOT)),
         "raw_records": raw_count,
         "cleaned_records": len(cleaned),

@@ -77,6 +77,12 @@ def clean_rows(
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
+    
+    NEW RULES (Sprint 2 - Thành viên 2):
+    7) Quarantine: chunk_text có ký tự điều khiển hoặc non-printable (BOM, null bytes).
+    8) Quarantine: exported_at trong tương lai (data integrity issue).
+    9) Quarantine: chunk_text quá ngắn (< 10 ký tự) - likely corrupted.
+    10) Normalize: loại bỏ khoảng trắng thừa và trim text.
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -89,10 +95,12 @@ def clean_rows(
         eff_raw = raw.get("effective_date", "")
         exported_at = raw.get("exported_at", "")
 
+        # Rule 1: Allowlist doc_id
         if doc_id not in ALLOWED_DOC_IDS:
             quarantine.append({**raw, "reason": "unknown_doc_id"})
             continue
 
+        # Rule 2-3: Normalize effective_date
         eff_norm, eff_err = _normalize_effective_date(eff_raw)
         if eff_err == "empty_effective_date":
             quarantine.append({**raw, "reason": "missing_effective_date"})
@@ -101,6 +109,7 @@ def clean_rows(
             quarantine.append({**raw, "reason": eff_err, "effective_date_raw": eff_raw})
             continue
 
+        # Rule 4: Stale HR policy version
         if doc_id == "hr_leave_policy" and eff_norm < "2026-01-01":
             quarantine.append(
                 {
@@ -111,16 +120,44 @@ def clean_rows(
             )
             continue
 
+        # Rule 5: Empty chunk_text
         if not text:
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
 
+        # NEW Rule 7: Check for control characters or BOM
+        if any(ord(c) < 32 and c not in '\n\r\t' for c in text) or text.startswith('\ufeff'):
+            quarantine.append({**raw, "reason": "contains_control_characters_or_bom"})
+            continue
+
+        # NEW Rule 8: Check exported_at not in future
+        if exported_at:
+            try:
+                from datetime import datetime, timezone
+                exp_dt = datetime.fromisoformat(exported_at.replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                if exp_dt > now:
+                    quarantine.append({**raw, "reason": "exported_at_in_future"})
+                    continue
+            except:
+                pass  # Invalid format already handled elsewhere
+
+        # NEW Rule 9: Chunk too short (likely corrupted)
+        if len(text.strip()) < 10:
+            quarantine.append({**raw, "reason": "chunk_text_too_short"})
+            continue
+
+        # NEW Rule 10: Normalize whitespace
+        text = " ".join(text.split())
+
+        # Rule 6: Deduplicate
         key = _norm_text(text)
         if key in seen_text:
             quarantine.append({**raw, "reason": "duplicate_chunk_text"})
             continue
         seen_text.add(key)
 
+        # Rule 7: Fix stale refund window
         fixed_text = text
         if apply_refund_window_fix and doc_id == "policy_refund_v4":
             if "14 ngày làm việc" in fixed_text:

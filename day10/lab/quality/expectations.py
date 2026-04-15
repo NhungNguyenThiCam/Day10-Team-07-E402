@@ -24,6 +24,11 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
     Trả về (results, should_halt).
 
     should_halt = True nếu có bất kỳ expectation severity halt nào fail.
+    
+    NEW EXPECTATIONS (Sprint 2 - Thành viên 2):
+    E7: Không có chunk_id trùng lặp (idempotency check)
+    E8: Tất cả doc_id phải thuộc allowlist (data contract compliance)
+    E9: Phân phối doc_id không quá lệch (distribution check - warn only)
     """
     results: List[ExpectationResult] = []
 
@@ -111,6 +116,61 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
             f"violations={len(bad_hr_annual)}",
         )
     )
+
+    # NEW E7: Không có chunk_id trùng lặp (idempotency check)
+    chunk_ids = [r.get("chunk_id", "") for r in cleaned_rows]
+    unique_ids = set(chunk_ids)
+    ok7 = len(chunk_ids) == len(unique_ids)
+    results.append(
+        ExpectationResult(
+            "no_duplicate_chunk_ids",
+            ok7,
+            "halt",
+            f"total_ids={len(chunk_ids)}, unique_ids={len(unique_ids)}",
+        )
+    )
+
+    # NEW E8: Tất cả doc_id phải thuộc allowlist (data contract compliance)
+    from transform.cleaning_rules import ALLOWED_DOC_IDS
+    invalid_docs = [r for r in cleaned_rows if r.get("doc_id") not in ALLOWED_DOC_IDS]
+    ok8 = len(invalid_docs) == 0
+    results.append(
+        ExpectationResult(
+            "all_doc_ids_in_allowlist",
+            ok8,
+            "halt",
+            f"invalid_doc_count={len(invalid_docs)}",
+        )
+    )
+
+    # NEW E9: Phân phối doc_id không quá lệch (distribution check - warn only)
+    if cleaned_rows:
+        from collections import Counter
+        doc_counts = Counter(r.get("doc_id") for r in cleaned_rows)
+        max_count = max(doc_counts.values()) if doc_counts else 0
+        min_count = min(doc_counts.values()) if doc_counts else 0
+        # Cảnh báo nếu một doc chiếm > 80% hoặc skew ratio > 10
+        total = len(cleaned_rows)
+        max_ratio = max_count / total if total > 0 else 0
+        skew_ratio = max_count / min_count if min_count > 0 else 0
+        ok9 = max_ratio <= 0.8 and skew_ratio <= 10
+        results.append(
+            ExpectationResult(
+                "doc_id_distribution_balanced",
+                ok9,
+                "warn",
+                f"max_ratio={max_ratio:.2f}, skew_ratio={skew_ratio:.1f}, distribution={dict(doc_counts)}",
+            )
+        )
+    else:
+        results.append(
+            ExpectationResult(
+                "doc_id_distribution_balanced",
+                True,
+                "warn",
+                "no_data_to_check",
+            )
+        )
 
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt

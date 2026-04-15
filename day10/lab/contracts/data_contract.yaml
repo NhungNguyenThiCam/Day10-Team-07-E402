@@ -3,50 +3,95 @@
 
 version: "1.0"
 dataset: "kb_chunk_export"
-owner_team: "__TODO__"
+owner_team: "Data Quality Team"
+owner_contact: "nguyenvana@example.com"
 
 schema_cleaned:
   chunk_id:
     type: string
     required: true
-    description: "ID ổn định sau clean (thường hash hoặc doc_id + seq)"
+    description: "ID ổn định sau clean (format: {doc_id}_{seq}_{hash16})"
+    constraints:
+      pattern: "^[a-z_0-9]+_\\d+_[a-f0-9]{16}$"
   doc_id:
     type: string
     required: true
     description: "Khóa logic tài liệu nguồn (vd policy_refund_v4)"
+    constraints:
+      enum: ["policy_refund_v4", "sla_p1_2026", "it_helpdesk_faq", "hr_leave_policy"]
   chunk_text:
     type: string
     required: true
     constraints:
-      min_length: 8
+      min_length: 10
+      no_control_chars: true
+      no_bom: true
   effective_date:
     type: date
     required: true
+    format: "YYYY-MM-DD"
+    description: "Ngày hiệu lực policy, parsed từ raw (hỗ trợ DD/MM/YYYY)"
   exported_at:
     type: datetime
     required: true
+    format: "ISO 8601"
+    description: "Timestamp export từ nguồn, không được trong tương lai"
 
 quality_rules:
   - id: "no_duplicate_chunk_text"
-    severity: "warn"
+    description: "Không được có chunk_text trùng lặp (giữ bản đầu)"
+    severity: "quarantine"
   - id: "no_stale_refund_window"
     description: "Không được để chunk policy refund chứa cửa sổ 14 ngày (lệch so với v4 = 7 ngày)"
     severity: "halt"
+  - id: "no_stale_hr_policy"
+    description: "HR leave policy phải có effective_date >= 2026-01-01"
+    severity: "quarantine"
+  - id: "no_unknown_doc_id"
+    description: "doc_id phải thuộc allowlist"
+    severity: "quarantine"
+  - id: "no_control_chars_or_bom"
+    description: "chunk_text không được chứa ký tự điều khiển hoặc BOM"
+    severity: "quarantine"
+  - id: "no_future_exported_at"
+    description: "exported_at không được trong tương lai"
+    severity: "quarantine"
+  - id: "no_too_short_chunk"
+    description: "chunk_text phải >= 10 ký tự sau normalize"
+    severity: "quarantine"
 
 freshness:
   measured_at: "publish"  # ingest | cleaned | publish
   sla_hours: 24
-  alert_channel: "__TODO__"
+  alert_channel: "slack://hooks.slack.com/services/TODO"
+  on_fail: "page_oncall"
+  rationale: "Policy PDF thay đổi ít (1 lần/tháng) → SLA 24h OK. Ticket stream real-time → nên SLA 1-4h."
 
 canonical_sources:
   - path: "data/docs/policy_refund_v4.txt"
     doc_id: "policy_refund_v4"
+    version: "v4"
+    effective_date: "2026-02-01"
+    owner: "Product team"
+    change_frequency: "monthly"
   - path: "data/docs/sla_p1_2026.txt"
     doc_id: "sla_p1_2026"
+    version: "2026"
+    effective_date: "2026-02-01"
+    owner: "Support team"
+    change_frequency: "yearly"
   - path: "data/docs/it_helpdesk_faq.txt"
     doc_id: "it_helpdesk_faq"
+    version: "living_doc"
+    effective_date: "2026-02-01"
+    owner: "IT team"
+    change_frequency: "weekly"
   - path: "data/docs/hr_leave_policy.txt"
     doc_id: "hr_leave_policy"
+    version: "2026"
+    effective_date: "2026-02-01"
+    owner: "HR team"
+    change_frequency: "yearly"
 
 # Baseline allowlist export — nhóm mở rộng doc mới phải đồng bộ cleaning_rules + contract.
 allowed_doc_ids:
@@ -58,3 +103,29 @@ allowed_doc_ids:
 # Merit/Distinction: có thể đưa cutoff versioning vào env và tham chiếu ở đây (tránh hard-code trong code).
 policy_versioning:
   hr_leave_min_effective_date: "2026-01-01"
+  refund_policy_current_version: "v4"
+  refund_window_days: 7  # v4 = 7 ngày, v3 = 14 ngày (stale)
+
+# Monitoring & alerting
+monitoring:
+  metrics:
+    - name: "raw_records"
+      description: "Số record trong raw export"
+      alert_threshold: "< 5 hoặc > 1000"
+    - name: "quarantine_rate"
+      description: "Tỷ lệ quarantine / raw"
+      alert_threshold: "> 30%"
+    - name: "expectation_pass_rate"
+      description: "Tỷ lệ expectation pass"
+      alert_threshold: "< 90%"
+    - name: "freshness_age_hours"
+      description: "Tuổi của data (giờ)"
+      alert_threshold: "> 24"
+
+# Change management
+change_process:
+  - step: "Update canonical file in data/docs/"
+  - step: "Update effective_date in export"
+  - step: "Rerun pipeline → old version auto-quarantined"
+  - step: "Update data_contract.yaml version field"
+  - step: "Notify stakeholders via alert_channel"
