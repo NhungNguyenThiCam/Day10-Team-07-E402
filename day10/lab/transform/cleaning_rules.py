@@ -109,7 +109,7 @@ def clean_rows(
             quarantine.append({**raw, "reason": eff_err, "effective_date_raw": eff_raw})
             continue
 
-        # Rule 4: Stale HR policy version
+        # Rule 3: Stale HR policy version
         if doc_id == "hr_leave_policy" and eff_norm < "2026-01-01":
             quarantine.append(
                 {
@@ -120,17 +120,17 @@ def clean_rows(
             )
             continue
 
-        # Rule 5: Empty chunk_text
+        # Rule 4: Empty chunk_text
         if not text:
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
 
-        # NEW Rule 7: Check for control characters or BOM
+        # Rule 7: Detect control characters or BOM
         if any(ord(c) < 32 and c not in '\n\r\t' for c in text) or text.startswith('\ufeff'):
             quarantine.append({**raw, "reason": "contains_control_characters_or_bom"})
             continue
 
-        # NEW Rule 8: Check exported_at not in future
+        # Rule 8: Detect exported_at in future (data integrity issue)
         if exported_at:
             try:
                 from datetime import datetime, timezone
@@ -142,22 +142,22 @@ def clean_rows(
             except:
                 pass  # Invalid format already handled elsewhere
 
-        # NEW Rule 9: Chunk too short (likely corrupted)
+        # Rule 9: Chunk text too short (< 10 chars - likely corrupted)
         if len(text.strip()) < 10:
             quarantine.append({**raw, "reason": "chunk_text_too_short"})
             continue
 
-        # NEW Rule 10: Normalize whitespace
+        # Rule 10: Normalize whitespace (trim and collapse multiple spaces)
         text = " ".join(text.split())
 
-        # Rule 6: Deduplicate
+        # Rule 5: Deduplicate by normalized text (keep first occurrence)
         key = _norm_text(text)
         if key in seen_text:
             quarantine.append({**raw, "reason": "duplicate_chunk_text"})
             continue
         seen_text.add(key)
 
-        # Rule 7: Fix stale refund window
+        # Rule 6: Fix stale refund window (policy_refund_v4: 14 days → 7 days)
         fixed_text = text
         if apply_refund_window_fix and doc_id == "policy_refund_v4":
             if "14 ngày làm việc" in fixed_text:
@@ -165,7 +165,6 @@ def clean_rows(
                     "14 ngày làm việc",
                     "7 ngày làm việc",
                 )
-                fixed_text += " [cleaned: stale_refund_window]"
 
         seq += 1
         cleaned.append(
