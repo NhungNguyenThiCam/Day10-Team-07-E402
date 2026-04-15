@@ -4,9 +4,9 @@
 **Thành viên:**
 | Tên | MSSV | Vai trò (Day 10) | Email |
 |-----|------|------------------|-------|
-| Nguyễn Thị Cẩm Nhung (Nhóm trưởng) | 2A202600208 | Ingestion / Monitoring Owner | nguyencamnhung@example.com |
-| Trịnh Đắc Phú | 2A202600322 | Cleaning & Quality Owner | trinhdacphu@example.com |
-| Trịnh Minh Công Tuyền | 2A202600324 | Embed & Eval Owner | trinhcongtuyen@example.com |
+| Nguyễn Thị Cẩm Nhung | 2A202600208 | Ingestion / Monitoring Owner | camnhungnguyen1712@gmail.com |
+| Trịnh Đắc Phú | 2A202600322 | Cleaning & Quality Owner | nhinnhuphu@gmail.com |
+| Trịnh Minh Công Tuyền | 2A202600324 | Embed & Eval Owner | tmctuyen201@gmail.com |
 | Trần Hữu Gia Huy | 2A202600426 | Documentation Owner | trangiahuy@example.com |
 
 **Ngày nộp:** 2026-04-15  
@@ -114,13 +114,13 @@ python eval_retrieval.py --out artifacts/eval/after_fix.csv
 
 **Kết quả định lượng:**
 
-| Metric | Before (inject-bad) | After (fix) | Improvement |
-|--------|---------------------|-------------|-------------|
-| `q_refund_window` contains_expected | yes | yes | - |
-| `q_refund_window` hits_forbidden | **yes** ❌ | **no** ✅ | 100% |
-| `q_leave_version` contains_expected | yes | yes | - |
-| `q_leave_version` hits_forbidden | **yes** ❌ | **no** ✅ | 100% |
-| `q_leave_version` top1_doc_expected | no | **yes** ✅ | Fixed |
+| Question | Metric | Before (inject-bad) | After (fix) | Improvement |
+|----------|--------|---------------------|-------------|-------------|
+| `q_refund_window` | contains_expected | yes | yes | - |
+| `q_refund_window` | hits_forbidden | **yes** ❌ | **no** ✅ | 100% |
+| `q_leave_version` | contains_expected | yes | yes | - |
+| `q_leave_version` | hits_forbidden | **yes** ❌ | **no** ✅ | 100% |
+| `q_leave_version` | top1_doc_expected | no | **yes** ✅ | Fixed |
 
 **Giải thích:**
 - **Before:** Top-k retrieval chứa cả chunk stale (14 ngày, 10 ngày phép) → agent có thể trả lời sai
@@ -133,6 +133,16 @@ python eval_retrieval.py --out artifacts/eval/after_fix.csv
 - `artifacts/logs/run_2026-04-15T10-30Z.log` (expectation OK)
 
 **Merit achievement:** Có chứng cứ cho cả `q_refund_window` (Pass) và `q_leave_version` (Merit) với đầy đủ 3 metrics (contains_expected, hits_forbidden, top1_doc_matches).
+
+**Grading results (3 câu bắt buộc):**
+
+| Question ID | Question | Result | Evidence |
+|-------------|----------|--------|----------|
+| `gq_d10_01` | Khách hàng có bao nhiêu ngày để yêu cầu hoàn tiền? | ✅ PASS | contains_expected=true, hits_forbidden=false |
+| `gq_d10_02` | SLA phản hồi đầu tiên cho ticket P1 là bao lâu? | ✅ PASS | contains_expected=true |
+| `gq_d10_03` | Nhân viên dưới 3 năm được bao nhiêu ngày phép năm? | ✅ PASS (Merit) | contains_expected=true, hits_forbidden=false, top1_doc_matches=true |
+
+**Grading summary:** 3/3 PASS → **Merit level achieved**. Câu `gq_d10_03` đạt đủ 3 metrics (contains_expected, hits_forbidden, top1_doc_matches) với top-1 document đúng là `hr_leave_policy`.
 
 ---
 

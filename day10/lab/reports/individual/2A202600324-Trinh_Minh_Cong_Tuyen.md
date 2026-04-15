@@ -122,6 +122,11 @@ q_password_reset,yes,no,yes
 ```
 → 3/3 PASS (Merit + Distinction achieved)
 
+**Grading details:**
+- **gq_d10_01** (Refund policy): Top-k chứa "7 ngày", không chứa "14 ngày làm việc" → PASS
+- **gq_d10_02** (P1 SLA): Top-k chứa "15 phút" (response time) hoặc "4 giờ" (resolution) → PASS
+- **gq_d10_03** (HR leave policy): Top-k chứa "12 ngày", không chứa "10 ngày phép năm", top-1 đúng `hr_leave_policy` → PASS (Merit)
+
 **Improvement:** `hits_forbidden` từ yes → no (100% fix). Eval coverage từ 4 → 5 câu (+25%).
 
 ---
