@@ -134,6 +134,16 @@ python eval_retrieval.py --out artifacts/eval/after_fix.csv
 
 **Merit achievement:** Có chứng cứ cho cả `q_refund_window` (Pass) và `q_leave_version` (Merit) với đầy đủ 3 metrics (contains_expected, hits_forbidden, top1_doc_matches).
 
+**Grading results (3 câu bắt buộc):**
+
+| Question ID | Question | Result | Evidence |
+|-------------|----------|--------|----------|
+| `gq_d10_01` | Khách hàng có bao nhiêu ngày để yêu cầu hoàn tiền? | ✅ PASS | contains_expected=true, hits_forbidden=false |
+| `gq_d10_02` | SLA phản hồi đầu tiên cho ticket P1 là bao lâu? | ✅ PASS | contains_expected=true |
+| `gq_d10_03` | Nhân viên dưới 3 năm được bao nhiêu ngày phép năm? | ✅ PASS (Merit) | contains_expected=true, hits_forbidden=false, top1_doc_matches=true |
+
+**Grading summary:** 3/3 PASS → **Merit level achieved**. Câu `gq_d10_03` đạt đủ 3 metrics (contains_expected, hits_forbidden, top1_doc_matches) với top-1 document đúng là `hr_leave_policy`.
+
 ---
 
 ## 4. Freshness & monitoring (100 từ)

@@ -104,6 +104,11 @@ freshness_check=PASS {"mode": "2-boundary", "processing_time_hours": 0.009}
 
 **Improvement:** `hits_forbidden` từ yes → no (100% fix). Grading: 3/3 PASS (gq_d10_01, gq_d10_02, gq_d10_03 đều đạt).
 
+**Grading details:**
+- **gq_d10_01**: contains_expected=true, hits_forbidden=false → PASS
+- **gq_d10_02**: contains_expected=true → PASS  
+- **gq_d10_03**: contains_expected=true, hits_forbidden=false, top1_doc_matches=true → PASS (Merit level)
+
 ---
 
 ## 5. Cải tiến tiếp theo
